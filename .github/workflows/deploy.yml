@@ -55,8 +55,8 @@ jobs:
       - name: Code Deploy
         run: |
           aws deploy create-deployment \
-          --application-name github-actions-deploy \
-          --deployment-group-name github-actions-group \
+          --application-name monthSub \
+          --deployment-group-name monthSub \
           --file-exists-behavior OVERWRITE \
           --deployment-config-name CodeDeployDefault.AllAtOnce \
           --s3-location bucket=monthsub,bundleType=zip,key=$GITHUB_SHA.zip
