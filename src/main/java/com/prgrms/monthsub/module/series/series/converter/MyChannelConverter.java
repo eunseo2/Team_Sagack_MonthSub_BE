@@ -6,7 +6,6 @@ import com.prgrms.monthsub.module.part.writer.converter.WriterConverter;
 import com.prgrms.monthsub.module.part.writer.domain.Writer;
 import com.prgrms.monthsub.module.series.series.domain.Series;
 import com.prgrms.monthsub.module.series.series.dto.MyChannel;
-import com.prgrms.monthsub.module.series.series.dto.MyChannel.OtherResponse;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +15,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class MyChannelConverter {
 
+  private final int DEFAULT_LIST_SIZE = 10;
+  private final int FOLLOW_COUNT_DEFAULT = 0;
   private final UserConverter userConverter;
   private final WriterConverter writerConverter;
   private final SeriesConverter seriesConverter;
@@ -39,22 +40,23 @@ public class MyChannelConverter {
     List<Series> seriesSubscribeList,
     List<Series> seriesPostList
   ) {
-    return new MyChannel.Response(
-      isFollowed,
-      isMine,
-      userConverter.toSeriesOneWithUser(user, Optional.of(writer.getId())),
-      followingWriterList.size(),
-      followingWriterList.stream()
+    return MyChannel.Response.builder()
+      .isFollowed(isFollowed)
+      .isMine(isMine)
+      .user(userConverter.toSeriesOneWithUser(user, Optional.of(writer.getId())))
+      .followIngCount(followingWriterList.size())
+      .followWriterList(followingWriterList.stream()
         .map(writerConverter::toMyChannelFollowWriterObject)
-        .collect(Collectors.toList()),
-      seriesSubscribeList.stream()
+        .limit(DEFAULT_LIST_SIZE)
+        .collect(Collectors.toList()))
+      .subscribeList(seriesSubscribeList.stream()
         .map(seriesConverter::toMyChannelSubscribeObject)
-        .collect(Collectors.toList()),
-      writer.getFollowCount(),
-      seriesPostList.stream()
+        .collect(Collectors.toList()))
+      .followCount(writer.getFollowCount())
+      .seriesPostList(seriesPostList.stream()
         .map(seriesConverter::toMyChannelSeriesObject)
-        .collect(Collectors.toList())
-    );
+        .collect(Collectors.toList()))
+      .build();
   }
 
   public MyChannel.Response toResponseWithoutWriter(
@@ -64,20 +66,21 @@ public class MyChannelConverter {
     List<Writer> followingWriterList,
     List<Series> seriesSubscribeList
   ) {
-    return new MyChannel.Response(
-      isFollowed,
-      isMine,
-      userConverter.toSeriesOneWithUser(user, Optional.empty()),
-      followingWriterList.size(),
-      followingWriterList.stream()
+    return MyChannel.Response.builder()
+      .isFollowed(isFollowed)
+      .isMine(isMine)
+      .user(userConverter.toSeriesOneWithUser(user, Optional.empty()))
+      .followIngCount(followingWriterList.size())
+      .followWriterList(followingWriterList.stream()
         .map(writerConverter::toMyChannelFollowWriterObject)
-        .collect(Collectors.toList()),
-      seriesSubscribeList.stream()
+        .limit(DEFAULT_LIST_SIZE)
+        .collect(Collectors.toList()))
+      .subscribeList(seriesSubscribeList.stream()
         .map(seriesConverter::toMyChannelSubscribeObject)
-        .collect(Collectors.toList()),
-      0,
-      Collections.emptyList()
-    );
+        .collect(Collectors.toList()))
+      .followCount(FOLLOW_COUNT_DEFAULT)
+      .seriesPostList(Collections.emptyList())
+      .build();
   }
 
   public MyChannel.OtherResponse toResponse(
@@ -88,19 +91,20 @@ public class MyChannelConverter {
     List<Writer> followingWriterList,
     List<Series> seriesPostList
   ) {
-    return new OtherResponse(
-      isFollowed,
-      isMine,
-      userConverter.toSeriesOneWithUser(user, Optional.of(writer.getId())),
-      followingWriterList.size(),
-      followingWriterList.stream()
+    return MyChannel.OtherResponse.builder()
+      .isFollowed(isFollowed)
+      .isMine(isMine)
+      .user(userConverter.toSeriesOneWithUser(user, Optional.of(writer.getId())))
+      .followIngCount(followingWriterList.size())
+      .followWriterList(followingWriterList.stream()
         .map(writerConverter::toMyChannelFollowWriterObject)
-        .collect(Collectors.toList()),
-      writer.getFollowCount(),
-      seriesPostList.stream()
+        .limit(DEFAULT_LIST_SIZE)
+        .collect(Collectors.toList()))
+      .followCount(writer.getFollowCount())
+      .seriesPostList(seriesPostList.stream()
         .map(seriesConverter::toMyChannelSeriesObject)
-        .collect(Collectors.toList())
-    );
+        .collect(Collectors.toList()))
+      .build();
   }
 
   public MyChannel.OtherResponse toResponseWithoutWriter(
@@ -109,17 +113,18 @@ public class MyChannelConverter {
     User user,
     List<Writer> followingWriterList
   ) {
-    return new MyChannel.OtherResponse(
-      isFollowed,
-      isMine,
-      userConverter.toSeriesOneWithUser(user, Optional.empty()),
-      followingWriterList.size(),
-      followingWriterList.stream()
+    return MyChannel.OtherResponse.builder()
+      .isFollowed(isFollowed)
+      .isMine(isMine)
+      .user(userConverter.toSeriesOneWithUser(user, Optional.empty()))
+      .followIngCount(followingWriterList.size())
+      .followWriterList(followingWriterList.stream()
         .map(writerConverter::toMyChannelFollowWriterObject)
-        .collect(Collectors.toList()),
-      0,
-      Collections.emptyList()
-    );
+        .limit(DEFAULT_LIST_SIZE)
+        .collect(Collectors.toList()))
+      .followCount(FOLLOW_COUNT_DEFAULT)
+      .seriesPostList(Collections.emptyList())
+      .build();
   }
 
 }
