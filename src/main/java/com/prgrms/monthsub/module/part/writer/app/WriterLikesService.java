@@ -1,14 +1,14 @@
 package com.prgrms.monthsub.module.part.writer.app;
 
-import static java.util.Optional.ofNullable;
-
 import com.prgrms.monthsub.module.part.writer.converter.WriterConverter;
 import com.prgrms.monthsub.module.part.writer.domain.Writer;
 import com.prgrms.monthsub.module.part.writer.domain.WriterLikes;
 import com.prgrms.monthsub.module.part.writer.domain.WriterLikes.LikesStatus;
+import com.prgrms.monthsub.module.part.writer.domain.exception.WriterException.WriterLikesNotFound;
 import com.prgrms.monthsub.module.part.writer.domain.exception.WriterException.WriterNotFound;
 import com.prgrms.monthsub.module.part.writer.dto.WriterFollowEvent;
 import com.prgrms.monthsub.module.part.writer.dto.WriterLikesList;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -25,33 +25,48 @@ public class WriterLikesService {
   private final int INCREASE_NUM = 1;
   private final int DECREASE_NUM = -1;
 
-  private final WriterLikesRepository writerLikesRepository;
+  private final CustomWriterLikesRepository customWriterLikesRepository;
   private final WriterService writerService;
   private final WriterConverter writerConverter;
 
   public WriterLikesService(
-    WriterLikesRepository writerLikesRepository,
+    CustomWriterLikesRepository customWriterLikesRepository,
     WriterService writerService,
     WriterConverter writerConverter
   ) {
-    this.writerLikesRepository = writerLikesRepository;
+    this.customWriterLikesRepository = customWriterLikesRepository;
     this.writerService = writerService;
     this.writerConverter = writerConverter;
   }
 
-  @Transactional
+  public WriterLikes getById(Long id) {
+    return this.customWriterLikesRepository
+      .findById(id)
+      .orElseThrow(() -> new WriterLikesNotFound("id=" + id));
+  }
+
   public WriterLikesList.Response getWriterLikesList(
-    Long channelOwnerUserId,
-    Long lastId,
+    Long userId,
+    Optional<Long> lastId,
     Integer size
   ) {
-    PageRequest cursorPageable = getPageRequest(size);
-
-    return new WriterLikesList.Response(
-      this.getWriterLikes(channelOwnerUserId, ofNullable(lastId), cursorPageable)
-        .stream()
-        .map(this.writerConverter::toWriterLikesList)
-        .collect(Collectors.toList())
+    return new WriterLikesList.Response(lastId.map(id -> {
+          LocalDateTime createdAt = this.getById(id).getCreatedAt();
+          return this.customWriterLikesRepository.findAll(
+            userId, id, size, createdAt
+          );
+        }
+      )
+      .orElse(
+        this.customWriterLikesRepository.findAllByUserIdAndLikesStatus(
+          userId,
+          LikesStatus.Like,
+          PageRequest.of(0, size, Sort.by(Direction.DESC, "createdAt", "id"))
+        )
+      )
+      .stream()
+      .map(this.writerConverter::toWriterLikesList)
+      .collect(Collectors.toList())
     );
   }
 
@@ -59,23 +74,7 @@ public class WriterLikesService {
     Long userId,
     LikesStatus likesStatus
   ) {
-    return this.writerLikesRepository.findAllByUserIdAndLikesStatus(userId, likesStatus);
-  }
-
-  private List<WriterLikes> getWriterLikes(
-    Long userId,
-    Optional<Long> lastId,
-    PageRequest cursorPageable
-  ) {
-    return lastId.map(lastWriterLikesId ->
-        this.writerLikesRepository.findByIdLessThanAndUserIdAndLikesStatus(
-          lastWriterLikesId, userId, LikesStatus.Like, cursorPageable
-        )
-      )
-      .orElse(
-        this.writerLikesRepository.findAllByUserIdAndLikesStatus(
-          userId, LikesStatus.Like, cursorPageable)
-      );
+    return this.customWriterLikesRepository.findAllByUserIdAndLikesStatus(userId, likesStatus);
   }
 
   @Transactional
@@ -83,7 +82,7 @@ public class WriterLikesService {
     Long userId,
     Long writerId
   ) {
-    return this.writerLikesRepository
+    return this.customWriterLikesRepository
       .findByUserIdAndWriterId(userId, writerId)
       .map(writerLikes -> {
         String likeStatus = String.valueOf(writerLikes.changeLikeStatus(LikesStatus.Like));
@@ -91,7 +90,7 @@ public class WriterLikesService {
         writerLikes.getWriter().updateFollowCount(INCREASE_NUM);
 
         return new WriterFollowEvent.Response(
-          this.writerLikesRepository.save(writerLikes).getUserId(),
+          this.customWriterLikesRepository.save(writerLikes).getUserId(),
           likeStatus
         );
       })
@@ -100,7 +99,7 @@ public class WriterLikesService {
           writer.updateFollowCount(INCREASE_NUM);
 
           return new WriterFollowEvent.Response(
-            this.writerLikesRepository.save(
+            this.customWriterLikesRepository.save(
               WriterLikes.builder()
                 .likesStatus(LikesStatus.Like)
                 .writer(writer)
@@ -123,7 +122,7 @@ public class WriterLikesService {
     writerLikes.getWriter().updateFollowCount(DECREASE_NUM);
 
     return new WriterFollowEvent.Response(
-      this.writerLikesRepository.save(writerLikes).getId(),
+      this.customWriterLikesRepository.save(writerLikes).getId(),
       likeStatus
     );
   }
@@ -132,19 +131,11 @@ public class WriterLikesService {
     Long userId,
     Long writerId
   ) {
-    return this.writerLikesRepository
+    return this.customWriterLikesRepository
       .findByUserIdAndWriterId(userId, writerId)
       .orElseThrow(() ->
         new WriterNotFound("userId=" + userId + ", " + "writerId=", writerId.toString())
       );
-  }
-
-  private PageRequest getPageRequest(int size) {
-    return PageRequest.of(
-      0,
-      size,
-      Sort.by(Direction.DESC, "updateAt", "id")
-    );
   }
 
 }
